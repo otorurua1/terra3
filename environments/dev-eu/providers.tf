@@ -12,7 +12,7 @@ terraform {
     bucket       = "grendaizer-win-s3-lock-1"
     key          = "dev/eu/terraform.tfstate"
     region       = "eu-central-1" # region the state BUCKET lives in, not eu-west-1
-    use_lockfile = true        # native S3 state locking (Terraform >= 1.10), no DynamoDB needed
+    use_lockfile = true           # native S3 state locking (Terraform >= 1.10), no DynamoDB needed
     encrypt      = true
   }
 }
