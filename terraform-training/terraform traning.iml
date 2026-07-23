@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="GENERAL_MODULE" version="4">
+  <component name="NewModuleRootManager" inherit-compiler-output="true">
+    <exclude-output />
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/bootstrap/.terraform" />
+      <excludeFolder url="file://$MODULE_DIR$/environments/dev-eu/.terraform" />
+      <excludeFolder url="file://$MODULE_DIR$/environments/dev-us/.terraform" />
+      <excludeFolder url="file://$MODULE_DIR$/environments/eu/.terraform" />
+      <excludeFolder url="file://$MODULE_DIR$/environments/prod-eu/.terraform" />
+      <excludeFolder url="file://$MODULE_DIR$/environments/prod-us/.terraform" />
+      <excludeFolder url="file://$MODULE_DIR$/environments/us/.terraform" />
+    </content>
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>

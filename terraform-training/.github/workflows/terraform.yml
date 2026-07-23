@@ -1,0 +1,106 @@
+name: Terraform
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+      region:
+        description: "Region"
+        required: true
+        type: choice
+        options:
+          - eu
+          - us
+      command:
+        description: "Terraform command"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+permissions:
+  contents: read
+
+# Serialize runs against the same stack so two workflow runs can't race
+# each other (S3 native locking would block the second one anyway, but
+# failing fast in the queue is a better experience than a failed apply).
+concurrency:
+  group: terraform-${{ inputs.environment }}-${{ inputs.region }}
+  cancel-in-progress: false
+
+jobs:
+  terraform:
+    name: terraform ${{ inputs.command }} (${{ inputs.environment }}-${{ inputs.region }})
+    runs-on: ubuntu-latest
+    # Ties this run to a GitHub Environment named "dev" or "prod" — set up
+    # required reviewers on the "prod" environment in repo settings to gate
+    # apply/destroy against production behind a manual approval.
+    environment: ${{ inputs.environment }}
+    defaults:
+      run:
+        working-directory: environments/${{ inputs.environment }}-${{ inputs.region }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Map region input to AWS region
+        id: region
+        run: |
+          case "${{ inputs.region }}" in
+            eu) echo "aws_region=eu-west-1" >> "$GITHUB_OUTPUT" ;;
+            us) echo "aws_region=us-east-1" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ steps.region.outputs.aws_region }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.8"
+          terraform_wrapper: false
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive ../..
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform ${{ inputs.command }}
+        run: |
+          case "${{ inputs.command }}" in
+            plan)
+              terraform plan -input=false
+              ;;
+            apply)
+              terraform apply -input=false -auto-approve
+              ;;
+            destroy)
+              terraform destroy -input=false -auto-approve
+              ;;
+          esac
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Terraform ${{ inputs.command }} — ${{ inputs.environment }}-${{ inputs.region }}"
+            echo "Stack: \`environments/${{ inputs.environment }}-${{ inputs.region }}\`"
+            echo "Result: ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"

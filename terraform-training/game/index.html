@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Super Terraform Bros</title>
+<style>
+  html,body{margin:0;height:100%;background:#5c94fc;display:flex;align-items:center;justify-content:center;font-family:monospace;color:#fff}
+  #wrap{text-align:center}
+  canvas{background:#5c94fc;border:4px solid #000;image-rendering:pixelated}
+  #hud{display:flex;justify-content:space-between;width:640px;margin:0 auto 6px;font-size:14px}
+  #msg{height:20px;font-size:13px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud"><span>Score: <span id="score">0</span></span><span id="region"></span></div>
+  <canvas id="c" width="640" height="360"></canvas>
+  <div id="msg">Arrow keys / A,D to move, Space to jump. Reach the flag!</div>
+</div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const GRAV=0.6,GROUND=320;
+let score=0,won=false;
+const keys={};
+addEventListener('keydown',e=>keys[e.key]=true);
+addEventListener('keyup',e=>keys[e.key]=false);
+
+const player={x:20,y:GROUND-32,w:24,h:32,vx:0,vy:0,onGround:false};
+
+const platforms=[
+  {x:0,y:GROUND,w:640,h:40},
+  {x:220,y:250,w:80,h:16},
+  {x:360,y:200,w:80,h:16},
+  {x:500,y:150,w:60,h:16},
+];
+
+const coins=[
+  {x:250,y:220,r:6,got:false},
+  {x:390,y:170,r:6,got:false},
+  {x:520,y:120,r:6,got:false},
+];
+
+const goomba={x:400,y:GROUND-24,w:24,h:24,vx:-1.5,alive:true};
+
+const flag={x:600,y:GROUND-120,w:8,h:120};
+
+function rectsOverlap(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
+
+function update(){
+  if(won) return;
+  player.vx=0;
+  if(keys['ArrowLeft']||keys['a']) player.vx=-3;
+  if(keys['ArrowRight']||keys['d']) player.vx=3;
+  if((keys[' ']||keys['ArrowUp']||keys['w'])&&player.onGround){player.vy=-11;player.onGround=false;}
+
+  player.vy+=GRAV;
+  player.x+=player.vx;
+  player.y+=player.vy;
+  player.onGround=false;
+
+  for(const p of platforms){
+    if(player.x+player.w>p.x&&player.x<p.x+p.w&&player.y+player.h>p.y&&player.y+player.h-player.vy<=p.y){
+      player.y=p.y-player.h;player.vy=0;player.onGround=true;
+    }
+  }
+  player.x=Math.max(0,Math.min(cv.width-player.w,player.x));
+  if(player.y>cv.height){player.x=20;player.y=GROUND-32;player.vy=0;score=Math.max(0,score-1);}
+
+  for(const c of coins){
+    if(!c.got&&Math.hypot(player.x+player.w/2-c.x,player.y+player.h/2-c.y)<20){c.got=true;score+=10;}
+  }
+
+  if(goomba.alive){
+    goomba.x+=goomba.vx;
+    if(goomba.x<340||goomba.x>460) goomba.vx*=-1;
+    if(rectsOverlap(player,goomba)){
+      if(player.vy>0&&player.y+player.h-player.vy<=goomba.y){goomba.alive=false;player.vy=-6;score+=20;}
+      else {player.x=20;player.y=GROUND-32;player.vy=0;score=Math.max(0,score-5);}
+    }
+  }
+
+  if(rectsOverlap(player,flag)){won=true;document.getElementById('msg').textContent='You reached the flag! Score: '+score;}
+  document.getElementById('score').textContent=score;
+}
+
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#5c94fc';ctx.fillRect(0,0,cv.width,cv.height);
+
+  ctx.fillStyle='#00a800';
+  for(const p of platforms) ctx.fillRect(p.x,p.y,p.w,p.h);
+
+  ctx.fillStyle='#fc0';
+  for(const c of coins) if(!c.got){ctx.beginPath();ctx.arc(c.x,c.y,c.r,0,7);ctx.fill();}
+
+  if(goomba.alive){ctx.fillStyle='#8b4513';ctx.fillRect(goomba.x,goomba.y,goomba.w,goomba.h);}
+
+  ctx.fillStyle='#fff';ctx.fillRect(flag.x,flag.y,flag.w,flag.h);
+  ctx.fillStyle='#fc0000';ctx.beginPath();ctx.moveTo(flag.x+flag.w,flag.y);ctx.lineTo(flag.x+flag.w+22,flag.y+8);ctx.lineTo(flag.x+flag.w,flag.y+16);ctx.fill();
+
+  ctx.fillStyle='#e52521';ctx.fillRect(player.x,player.y,player.w,player.h);
+  ctx.fillStyle='#f8d0a0';ctx.fillRect(player.x+4,player.y+2,player.w-8,10);
+}
+
+function loop(){update();draw();requestAnimationFrame(loop);}
+loop();
+
+fetch('/region.json').then(r=>r.ok?r.json():null).then(d=>{
+  if(d&&d.region) document.getElementById('region').textContent='Served from '+d.region;
+}).catch(()=>{});
+</script>
+</body>
+</html>
